@@ -1,4 +1,5 @@
 #include "minemu/boot.h"
+#include "minemu/platform.h"
 #include "minemu/trap.h"
 #include "minemu/trace.h"
 
@@ -15,5 +16,13 @@ void minemu_kernel_main(const struct minemu_boot_info *boot_info) {
         minemu_fail_stop();
     }
     minemu_trace_event(1);
+
+    const char message[] = "hello world\n";
+    for(size_t index = 0; index < sizeof(message) - 1; ++index) {
+        if(MINEMU_UART0->status & MINEMU_UART_STATUS_TX_READY) {
+            MINEMU_UART0->tx_data = (uint8_t)message[index];
+        }
+    }
+
     minemu_fail_stop();
 }
