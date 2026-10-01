@@ -28,5 +28,7 @@ void minemu_kernel_main(const struct minemu_boot_info *boot_info) {
         MINEMU_UART0->tx_data = (uint8_t)message[index];
     }
 
+    minemu_printf("msh> ");
+
     minemu_fail_stop();
 }
