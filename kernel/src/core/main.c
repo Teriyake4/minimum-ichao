@@ -5,6 +5,9 @@
 
 #include "minemu/uart.h"
 #include "minemu/console.h"
+#include "minemu/msh.h"
+#include "minemu/irq.h"
+#include <stdint.h>
 
 void minemu_kernel_main(const struct minemu_boot_info *boot_info) {
     if ((uintptr_t)boot_info != MINEMU_BOOT_INFO_VADDR ||
@@ -28,7 +31,8 @@ void minemu_kernel_main(const struct minemu_boot_info *boot_info) {
         MINEMU_UART0->tx_data = (uint8_t)message[index];
     }
 
-    minemu_printf("msh> ");
-
+    minemu_uart_init();
+    minemu_irq_enable();
+    minemu_msh_run();
     minemu_fail_stop();
 }

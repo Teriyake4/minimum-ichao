@@ -7,7 +7,7 @@
 
 typedef void (*minemu_irq_handler_t)(void);
 
-void minemu_uart_handler() {
+void minemu_uart0_irq_handler(void) {
     uint8_t byte;
     while(minemu_uart_getc(&byte)) {
         minemu_uart_push(byte);
@@ -16,7 +16,7 @@ void minemu_uart_handler() {
 
 static const minemu_irq_handler_t handlers[] = {
     [MINEMU_IRQ_SYSTICK] = 0,
-    [MINEMU_IRQ_UART0] = minemu_irq_uart0_handler,
+    [MINEMU_IRQ_UART0] = minemu_uart0_irq_handler,
     [MINEMU_IRQ_UART1] = 0,
     [MINEMU_IRQ_BLOCK] = 0,
 };
