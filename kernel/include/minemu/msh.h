@@ -1,7 +1,7 @@
 #ifndef MINEMU_MSH_H
 #define MINEMU_MSH_H
 
-#define MSH_MAX_LINE 20
+#define MSH_MAX_LINE 25
 
 void minemu_msh_run(void) __attribute__((noreturn));
 

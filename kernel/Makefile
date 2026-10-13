@@ -15,14 +15,16 @@ RUNTIME_OBJECTS := \
 	$(BUILD)/runtime/trace.o \
 	$(BUILD)/startup/boot.o \
 	$(BUILD)/startup/vectors.o \
-	$(BUILD)/startup/svc.o \
-	$(BUILD)/startup/user.o \
 	$(BUILD)/startup/irq.o \
 	$(BUILD)/runtime/irq.o \
 	$(BUILD)/runtime/uart.o \
 	$(BUILD)/runtime/console.o
 
-OBJECTS := $(CORE_OBJECT) $(RUNTIME_OBJECTS)
+USERMODE_OBJECTS := \
+	$(BUILD)/startup/svc.o \
+	$(BUILD)/startup/user.o
+
+OBJECTS := $(CORE_OBJECT) $(RUNTIME_OBJECTS) $(USERMODE_OBJECTS)
 DEPENDENCIES := $(OBJECTS:.o=.d)
 
 ARCH_FLAGS := -mcpu=cortex-a9 -marm -mfloat-abi=soft
@@ -64,9 +66,9 @@ $(RUNTIME): $(RUNTIME_OBJECTS)
 	@mkdir -p $(dir $@)
 	$(AR) rcs $@ $^
 
-$(KERNEL): $(CORE_OBJECT) $(RUNTIME) linker/kernel.ld
+$(KERNEL): $(CORE_OBJECT) $(USERMODE_OBJECTS) $(RUNTIME) linker/kernel.ld
 	@mkdir -p $(dir $@)
-	$(CC) $(LDFLAGS) $(CORE_OBJECT) $(RUNTIME) $(LIBGCC) -o $@
+	$(CC) $(LDFLAGS) $(CORE_OBJECT) $(USERMODE_OBJECTS) $(RUNTIME) $(LIBGCC) -o $@
 
 $(BUILD)/core/%.o: src/core/%.c
 	@mkdir -p $(dir $@)

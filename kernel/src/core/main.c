@@ -37,16 +37,45 @@ void minemu_enter_user(uint32_t entry_vaddr, uint32_t stack_top) __attribute__((
 
 static void zero_bytes(void *destination, size_t length) {
     uint8_t *bytes = destination;
-    for (size_t index = 0; index < length; ++index) {
-        bytes[index] = 0;
+    while(length != 0 && ((uintptr_t)bytes % sizeof(uint32_t)) != 0) {
+        *bytes++ = 0;
+        --length;
+    }
+    while(length >= sizeof(uint32_t)) {
+        *(uint32_t *)(void *)bytes = 0;
+        bytes += sizeof(uint32_t);
+        length -= sizeof(uint32_t);
+    }
+    while(length != 0) {
+        *bytes++ = 0;
+        --length;
     }
 }
 
 static void copy_bytes(void *destination, const void *source, size_t length) {
     uint8_t *out = destination;
     const uint8_t *in = source;
-    for (size_t index = 0; index < length; ++index) {
-        out[index] = in[index];
+    if(((uintptr_t)out % sizeof(uint32_t)) !=
+        ((uintptr_t)in % sizeof(uint32_t))) {
+        while(length != 0) {
+            *out++ = *in++;
+            --length;
+        }
+        return;
+    }
+    while(length != 0 && ((uintptr_t)out % sizeof(uint32_t)) != 0) {
+        *out++ = *in++;
+        --length;
+    }
+    while(length >= sizeof(uint32_t)) {
+        *(uint32_t *)(void *)out = *(const uint32_t *)(const void *)in;
+        out += sizeof(uint32_t);
+        in += sizeof(uint32_t);
+        length -= sizeof(uint32_t);
+    }
+    while(length != 0) {
+        *out++ = *in++;
+        --length;
     }
 }
 
@@ -158,7 +187,7 @@ static int user_page_index(uint32_t page_vaddr, uint32_t flags, bool create) {
     size_t index = user_page_count++;
     user_page_vaddrs[index] = page_vaddr;
     user_page_flags[index] = flags;
-    zero_bytes(user_image_pages[index], MINEMU_PAGE_SIZE);
+    // zero_bytes(user_image_pages[index], MINEMU_PAGE_SIZE);
     return (int)index;
 }
 
