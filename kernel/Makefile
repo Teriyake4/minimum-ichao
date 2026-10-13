@@ -15,6 +15,8 @@ RUNTIME_OBJECTS := \
 	$(BUILD)/runtime/trace.o \
 	$(BUILD)/startup/boot.o \
 	$(BUILD)/startup/vectors.o \
+	$(BUILD)/startup/svc.o \
+	$(BUILD)/startup/user.o \
 	$(BUILD)/startup/irq.o \
 	$(BUILD)/runtime/irq.o \
 	$(BUILD)/runtime/uart.o \
