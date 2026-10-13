@@ -35,11 +35,22 @@ static size_t user_page_count;
 
 void minemu_enter_user(uint32_t entry_vaddr, uint32_t stack_top) __attribute__((noreturn));
 
+__attribute__((optimize("O2", "no-strict-aliasing")))
 static void zero_bytes(void *destination, size_t length) {
     uint8_t *bytes = destination;
     while(length != 0 && ((uintptr_t)bytes % sizeof(uint32_t)) != 0) {
         *bytes++ = 0;
         --length;
+    }
+    // Clear 16 bytes per iteration.
+    while(length >= 4 * sizeof(uint32_t)) {
+        uint32_t *words = (uint32_t *)(void *)bytes;
+        words[0] = 0;
+        words[1] = 0;
+        words[2] = 0;
+        words[3] = 0;
+        bytes += 4 * sizeof(uint32_t);
+        length -= 4 * sizeof(uint32_t);
     }
     while(length >= sizeof(uint32_t)) {
         *(uint32_t *)(void *)bytes = 0;
@@ -52,6 +63,7 @@ static void zero_bytes(void *destination, size_t length) {
     }
 }
 
+__attribute__((optimize("O2", "no-strict-aliasing")))
 static void copy_bytes(void *destination, const void *source, size_t length) {
     uint8_t *out = destination;
     const uint8_t *in = source;
@@ -106,6 +118,7 @@ static volatile uint32_t *active_page_directory(void) {
 }
 
 static bool map_system_rom(const struct minemu_boot_info *boot_info) {
+    static bool initialized[SYSTEM_ROM_TABLE_COUNT];
     if (boot_info->system_rom_base != MINEMU_SYSTEM_ROM_BASE || boot_info->image_size == 0 ||
         boot_info->image_size > MINEMU_SYSTEM_ROM_SIZE) {
         return false;
@@ -119,7 +132,10 @@ static bool map_system_rom(const struct minemu_boot_info *boot_info) {
 
     volatile uint32_t *directory = active_page_directory();
     for (uint32_t table = 0; table < table_count; ++table) {
-        zero_bytes(system_rom_tables[table], sizeof(system_rom_tables[table]));
+        if(initialized[table]) {
+            zero_bytes(system_rom_tables[table], sizeof(system_rom_tables[table]));
+        }
+        initialized[table] = true;
         uint32_t remaining = page_count - table * 1024U;
         uint32_t entries = remaining < 1024U ? remaining : 1024U;
         for (uint32_t index = 0; index < entries; ++index) {
@@ -187,7 +203,7 @@ static int user_page_index(uint32_t page_vaddr, uint32_t flags, bool create) {
     size_t index = user_page_count++;
     user_page_vaddrs[index] = page_vaddr;
     user_page_flags[index] = flags;
-    // zero_bytes(user_image_pages[index], MINEMU_PAGE_SIZE);
+    zero_bytes(user_image_pages[index], MINEMU_PAGE_SIZE);
     return (int)index;
 }
 
@@ -229,6 +245,7 @@ static bool write_user_range(uint32_t vaddr, const uint8_t *source, uint32_t len
 
 static bool load_user_module(const struct minemu_boot_info *boot_info,
                              const struct minemu_module_record *module) {
+    static bool initialized;
     const uint8_t *image = (const uint8_t *)(uintptr_t)boot_info->system_rom_base;
     if (module->segment_count == 0 ||
         !image_records_valid(module->segment_table_offset, module->segment_count,
@@ -240,8 +257,11 @@ static bool load_user_module(const struct minemu_boot_info *boot_info,
     const struct minemu_module_segment *segments =
         (const struct minemu_module_segment *)(image + module->segment_table_offset);
     bool entry_is_executable = false;
-    zero_bytes(user_page_table, sizeof(user_page_table));
-    zero_bytes(user_stack, sizeof(user_stack));
+    if(initialized) {
+        zero_bytes(user_page_table, sizeof(user_page_table));
+        zero_bytes(user_stack, sizeof(user_stack));
+    }
+    initialized = true;
     user_page_count = 0;
 
     for (uint32_t index = 0; index < module->segment_count; ++index) {
@@ -261,9 +281,10 @@ static bool load_user_module(const struct minemu_boot_info *boot_info,
 
         uint32_t pte_flags = pte_flags_from_segment(segment->flags);
         if (!prepare_user_range(segment->virtual_address, segment->memory_size, pte_flags) ||
-            !write_user_range(segment->virtual_address, NULL, segment->memory_size) ||
             !write_user_range(segment->virtual_address, image + segment->data_offset,
-                              segment->file_size)) {
+                              segment->file_size) ||
+            !write_user_range(segment->virtual_address + segment->file_size, NULL,
+                              segment->memory_size - segment->file_size)) {
             return false;
         }
 
